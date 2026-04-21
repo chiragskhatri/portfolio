@@ -24,7 +24,7 @@ async function loadClients() {
       const imageHTML = firstImage ? `
         <div class="image-container">
           <img 
-            src="/img/${firstImage}" 
+            src="./img/${firstImage}" 
             alt="${client.name}" 
             class="client-image" 
             data-all-images='${JSON.stringify(images)}'
@@ -174,7 +174,7 @@ function displayImage(index, allImages) {
   const lightbox = document.getElementById('imageLightbox');
   const gallery = document.getElementById('lightboxGallery');
   
-  gallery.innerHTML = `<img src="/img/${allImages[index]}" alt="Image ${index + 1}" class="gallery-image fullscreen-image">`;
+  gallery.innerHTML = `<img src="./img/${allImages[index]}" alt="Image ${index + 1}" class="gallery-image fullscreen-image">`;
   
   // Update counter
   const counter = document.getElementById('imageCounter');
