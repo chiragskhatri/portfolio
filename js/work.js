@@ -1,6 +1,6 @@
 async function loadClients() {
   try {
-    const response = await fetch('/data/clients.json');
+    const response = await fetch('./data/clients.json');
     const clients = await response.json();
 
     const clientsGrid = document.getElementById('clientsGrid');
