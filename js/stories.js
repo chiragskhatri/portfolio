@@ -1,6 +1,6 @@
 async function loadStories() {
   try {
-    const response = await fetch('/data/stories.json');
+    const response = await fetch('./data/stories.json');
     const stories = await response.json();
 
     const storiesGrid = document.getElementById('storiesGrid');
