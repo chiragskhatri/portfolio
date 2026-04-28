@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Update copyright year dynamically
+  document.getElementById('current-year').textContent = new Date().getFullYear();
+
   const navbar = document.getElementById('navbar');
   const menuToggle = document.getElementById('menuToggle');
   const navLinks = document.querySelector('.nav-links');

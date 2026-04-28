@@ -1,19 +1,29 @@
+import { GOOGLE_SHEET_ID, STORIES_SHEET_GID, fetchSheetData } from './data-loader.js';
+
 async function loadStories() {
   try {
-    const response = await fetch('./data/stories.json');
-    const stories = await response.json();
+    if (!GOOGLE_SHEET_ID) {
+      throw new Error('Google Sheet ID is not configured. Open js/data-loader.js and set GOOGLE_SHEET_ID.');
+    }
+
+    const stories = await fetchSheetData(GOOGLE_SHEET_ID, STORIES_SHEET_GID);
+    console.log('Loaded stories from Google Sheet:', stories);
 
     const storiesGrid = document.getElementById('storiesGrid');
-
     if (!storiesGrid) return;
+
+    if (!stories || stories.length === 0) {
+      storiesGrid.innerHTML = '<p>No stories data found.</p>';
+      return;
+    }
 
     stories.forEach(story => {
       const storyCard = document.createElement('div');
       storyCard.className = 'story-card reveal';
 
       storyCard.innerHTML = `
-        <p class="story-text">"${story.text}"</p>
-        <p class="story-client">— ${story.client}</p>
+        <p class="story-text">"${story.text || 'No text'}"</p>
+        <p class="story-client">— ${story.client || 'Unknown'}</p>
       `;
 
       storiesGrid.appendChild(storyCard);
@@ -36,6 +46,10 @@ async function loadStories() {
 
   } catch (error) {
     console.error('Error loading stories:', error);
+    const storiesGrid = document.getElementById('storiesGrid');
+    if (storiesGrid) {
+      storiesGrid.innerHTML = `<p style="color: red;">Error loading stories: ${error.message}</p>`;
+    }
   }
 }
 

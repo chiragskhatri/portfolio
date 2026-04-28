@@ -1,31 +1,44 @@
+import { GOOGLE_SHEET_ID, CLIENTS_SHEET_GID, fetchSheetData } from './data-loader.js';
+
 async function loadClients() {
   try {
-    const response = await fetch('./data/clients.json');
-    const clients = await response.json();
+    if (!GOOGLE_SHEET_ID) {
+      throw new Error('Google Sheet ID is not configured. Open js/data-loader.js and set GOOGLE_SHEET_ID.');
+    }
+
+    const clients = await fetchSheetData(GOOGLE_SHEET_ID, CLIENTS_SHEET_GID);
+    console.log('Loaded clients from Google Sheet:', clients);
 
     const clientsGrid = document.getElementById('clientsGrid');
-
     if (!clientsGrid) return;
+
+    if (!clients || clients.length === 0) {
+      clientsGrid.innerHTML = '<p>No clients data found.</p>';
+      return;
+    }
 
     clients.forEach(client => {
       const clientCard = document.createElement('div');
       clientCard.className = 'client-card reveal';
 
-      const impactList = client.impact.map(item => `<li>${item}</li>`).join('');
-      
-      // Support both old 'image' field and new 'images' array for backwards compatibility
-      const images = client.images || (client.image ? [client.image] : []);
-      
-      // Show only the first image in the card
-      const firstImage = images[0];
+      const impactList = Array.isArray(client.impact)
+        ? client.impact.map(item => `<li>${item}</li>`).join('')
+        : '<li>No impact listed</li>';
+
+      const images = Array.isArray(client.images)
+        ? client.images.filter(Boolean)
+        : (client.image ? [client.image] : []);
+
+      const firstImage = images[0] || '';
       const remainingCount = images.length - 1;
       const badgeHTML = remainingCount > 0 ? `<div class="image-badge">+${remainingCount}</div>` : '';
-      
-      const imageHTML = firstImage ? `
+      const imageUrl = firstImage ? getImageUrl(firstImage) : '';
+
+      const imageHTML = imageUrl ? `
         <div class="image-container">
           <img 
-            src="./img/${firstImage}" 
-            alt="${client.name}" 
+            src="${imageUrl}" 
+            alt="${client.name || 'Client'}" 
             class="client-image" 
             data-all-images='${JSON.stringify(images)}'
             data-client-name="${client.name}"
@@ -36,11 +49,11 @@ async function loadClients() {
 
       clientCard.innerHTML = `
         <div class="client-header">
-          <h3 class="client-name">${client.name}</h3>
-          <p class="client-handle">${client.handle}</p>
+          <h3 class="client-name">${client.name || 'Unnamed Client'}</h3>
+          <p class="client-handle">${client.handle || 'No handle'}</p>
         </div>
-        <span class="client-role">${client.role}</span>
-        <p class="client-description">${client.description}</p>
+        <span class="client-role">${client.role || 'No role'}</span>
+        <p class="client-description">${client.description || 'No description'}</p>
         <div class="client-impact">
           <h4>Impact</h4>
           <ul>
@@ -55,7 +68,6 @@ async function loadClients() {
       clientsGrid.appendChild(clientCard);
     });
 
-    // Add click handler for lightbox
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('client-image')) {
         const allImages = JSON.parse(e.target.dataset.allImages);
@@ -73,14 +85,18 @@ async function loadClients() {
     }, {
       threshold: 0.1,
       rootMargin: '0px 0px -50px 0px'
-    });
+  });
 
-    document.querySelectorAll('.client-card').forEach(card => {
-      observer.observe(card);
-    });
+  document.querySelectorAll('.client-card').forEach(card => {
+    observer.observe(card);
+  });
 
   } catch (error) {
     console.error('Error loading clients:', error);
+    const clientsGrid = document.getElementById('clientsGrid');
+    if (clientsGrid) {
+      clientsGrid.innerHTML = `<p style="color: red;">Error loading clients: ${error.message}</p>`;
+    }
   }
 }
 
@@ -170,12 +186,62 @@ function openLightbox(allImages, clientName, currentIndex = 0) {
   document.addEventListener('keydown', handleLightboxKeydown);
 }
 
+// function getImageUrl(imageValue) {
+//   if (!imageValue || typeof imageValue !== 'string') return '';
+
+//   const trimmed = imageValue.trim();
+//   if (!trimmed) return '';
+
+//   if (/^https?:\/\//i.test(trimmed) || /^\/\//.test(trimmed) || /^data:/i.test(trimmed)) {
+//     if (trimmed.includes('drive.google.com')) {
+//       const fileIdMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+//       if (fileIdMatch) {
+//         return `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
+//       }
+//       const openIdMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+//       if (openIdMatch) {
+//         return `https://drive.google.com/uc?export=view&id=${openIdMatch[1]}`;
+//       }
+//     }
+
+//     return trimmed;
+//   }
+
+//   return `./img/${trimmed}`;
+// }
+
+function getImageUrl(imageValue) {
+  if (!imageValue || typeof imageValue !== 'string') return '';
+
+  const trimmed = imageValue.trim();
+  if (!trimmed) return '';
+
+  if (/^https?:\/\//i.test(trimmed) || /^\/\//.test(trimmed) || /^data:/i.test(trimmed)) {
+    if (trimmed.includes('drive.google.com')) {
+      const fileIdMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (fileIdMatch) {
+        return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w1000`;
+      }
+
+      const openIdMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (openIdMatch) {
+        return `https://drive.google.com/thumbnail?id=${openIdMatch[1]}&sz=w1000`;
+      }
+    }
+
+    return trimmed;
+  }
+
+  return `./img/${trimmed}`;
+}
+
 function displayImage(index, allImages) {
   const lightbox = document.getElementById('imageLightbox');
   const gallery = document.getElementById('lightboxGallery');
-  
-  gallery.innerHTML = `<img src="./img/${allImages[index]}" alt="Image ${index + 1}" class="gallery-image fullscreen-image">`;
-  
+  const imageUrl = getImageUrl(allImages[index]);
+
+  gallery.innerHTML = `<img src="${imageUrl}" alt="Image ${index + 1}" class="gallery-image fullscreen-image">`;
+
   // Update counter
   const counter = document.getElementById('imageCounter');
   if (counter) {
